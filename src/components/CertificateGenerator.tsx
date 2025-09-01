@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import jsPDF from "jspdf";
-import img from "/images/certificate_template.jpg";
+import img from "../assets/Img/certificate_template.jpeg";
 import "../assets/fonts/Parisienne-Regular-normal.js";
 import { format } from "path";
 
