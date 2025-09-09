@@ -90,6 +90,8 @@ const iconMap = {
   html: Edit3,
   pdf: FileText,
   ted: FileText,
+  medium: BookOpen,
+  toastmasters: BookOpen,
   video: Video,
   audio: Headphones,
   image: Eye,
@@ -181,14 +183,14 @@ const ActivityCard = ({ subconcept, index, isEnabled, isCompleted, isNext, stage
     >
       <Link
         to={
-          isEnabled &&
+          (isEnabled || !isEnabled) &&
           !(subconcept?.subconceptType?.toLowerCase().startsWith("assessment") &&
             subconcept?.completionStatus === "yes")
             ? `/subconcept/${subconcept?.subconceptId}`
             : null
         }
         state={{ subconcept, stageId, currentUnitId }}
-        className={`${!isEnabled && "cursor-not-allowed"}`}
+        className={`${(!isEnabled || isEnabled) && "cursor-pointer"}`}
         onClick={(e) => {
           if (subconcept?.subconceptType?.toLowerCase().startsWith("assessment") &&
               subconcept?.completionStatus === "yes") {
@@ -219,9 +221,9 @@ const ActivityCard = ({ subconcept, index, isEnabled, isCompleted, isNext, stage
             relative overflow-hidden rounded-lg border transition-all duration-300 p-6 min-h-[120px] bg-white
             ${isCompleted 
               ? "border-emerald-200 shadow-sm" 
-              : isEnabled 
+              : (isEnabled || !isEnabled)
                 ? "border-slate-200 hover:border-blue-300 hover:shadow-md hover:scale-[1.02]" 
-                : "border-gray-200 opacity-70"}
+                : "border-slate-200 hover:border-blue-300 hover:shadow-md hover:scale-[1.02]"}
             ${isNext ? "ring-2 ring-blue-200 ring-opacity-60 shadow-md" : ""}
           `}
         >
@@ -241,9 +243,9 @@ const ActivityCard = ({ subconcept, index, isEnabled, isCompleted, isNext, stage
                     relative p-3 rounded-lg transition-all duration-300
                     ${isCompleted 
                       ? "bg-emerald-100" 
-                      : isEnabled 
+                      : (isEnabled || !isEnabled)
                         ? "bg-slate-50 group-hover:bg-blue-50" 
-                        : "bg-gray-100"}
+                        : "bg-slate-50 group-hover:bg-blue-50"}
                   `}
                 >
                   <Icon
@@ -252,9 +254,9 @@ const ActivityCard = ({ subconcept, index, isEnabled, isCompleted, isNext, stage
                     color={
                       isCompleted 
                         ? "#059669" 
-                        : isEnabled 
+                        : (isEnabled || !isEnabled)
                           ? "#3b82f6" 
-                          : "#9ca3af"
+                          : "#3b82f6"
                     }
                     className="object-contain"
                   />
@@ -270,13 +272,7 @@ const ActivityCard = ({ subconcept, index, isEnabled, isCompleted, isNext, stage
                     </motion.div>
                   )}
 
-                  {!isEnabled && !isCompleted && (
-                    <div className="absolute -top-1 -right-1 bg-gray-400 rounded-full p-1">
-                      <Lock className="w-3 h-3 text-white" />
-                    </div>
-                  )}
-
-                  {isNext && !isCompleted && (
+                  {(!isEnabled || isEnabled) && !isCompleted && isNext && (
                     <motion.div
                       animate={{ scale: [1, 1.1, 1] }}
                       transition={{ duration: 3, repeat: Infinity }}
@@ -293,9 +289,9 @@ const ActivityCard = ({ subconcept, index, isEnabled, isCompleted, isNext, stage
                   font-semibold text-base leading-tight mb-1 truncate
                   ${isCompleted 
                     ? "text-emerald-700" 
-                    : isEnabled 
+                    : (isEnabled || !isEnabled)
                       ? "text-slate-700" 
-                      : "text-gray-500"}
+                      : "text-slate-700"}
                 `}>
                   {subconcept.subconceptDesc}
                 </h3>
@@ -303,9 +299,9 @@ const ActivityCard = ({ subconcept, index, isEnabled, isCompleted, isNext, stage
                   text-sm capitalize
                   ${isCompleted 
                     ? "text-emerald-600" 
-                    : isEnabled 
+                    : (isEnabled || !isEnabled)
                       ? "text-blue-600" 
-                      : "text-gray-400"}
+                      : "text-blue-600"}
                 `}>
                   {subconcept.subconceptType.replace(/_/g, ' ')}
                 </p>
@@ -315,14 +311,14 @@ const ActivityCard = ({ subconcept, index, isEnabled, isCompleted, isNext, stage
             {/* Action Indicator */}
             <div className={`
               transition-all duration-300
-              ${isEnabled ? "opacity-100 group-hover:translate-x-0.5" : "opacity-40"}
+              ${(isEnabled || !isEnabled) ? "opacity-100 group-hover:translate-x-0.5" : "opacity-100 group-hover:translate-x-0.5"}
             `}>
               {isCompleted ? (
                 <Trophy className="w-5 h-5 text-emerald-500" />
-              ) : isEnabled ? (
+              ) : (isEnabled || !isEnabled) ? (
                 <ChevronRight className="w-5 h-5 text-blue-500" />
               ) : (
-                <Lock className="w-5 h-5 text-gray-400" />
+                <ChevronRight className="w-5 h-5 text-blue-500" />
               )}
             </div>
           </div>

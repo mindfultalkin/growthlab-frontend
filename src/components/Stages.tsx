@@ -63,9 +63,9 @@ export default function Stages({
 
   // @ts-ignore
   const toggleExpand = (index) => {
-    // Allow expansion only if the stage is enabled
+    // Allow expansion regardless of stage enabled status
     // @ts-ignore
-    if (stagesArray[index]?.stageEnabled) {
+    if (stagesArray[index]?.stageEnabled || !stagesArray[index]?.stageEnabled) {
       setExpandedModule(expandedModule === index ? null : index);
       setStepIndex((prevStepIndex) => prevStepIndex + 1);
     }
@@ -114,9 +114,9 @@ export default function Stages({
                       ? 'border-green-200 bg-green-50' 
                       : isPending
                       ? 'border-amber-200 bg-amber-50'
-                      : isEnabled
+                      : (isEnabled || !isEnabled)
                       ? 'border-slate-200 bg-white hover:border-slate-300'
-                      : 'border-slate-200 bg-slate-50'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
                   } rounded-lg overflow-hidden`}
                 >
                   {/* Stage Header */}
@@ -128,30 +128,30 @@ export default function Stages({
                             ? 'bg-green-100' 
                             : isPending
                             ? 'bg-amber-100'
-                            : isEnabled
+                            : (isEnabled || !isEnabled)
                             ? 'bg-orange-100'
-                            : 'bg-slate-200'
+                            : 'bg-orange-100'
                         }`}>
                           {isCompleted ? (
                             <CheckCircle2 className="w-5 h-5 text-green-600" />
                           ) : isPending ? (
                             <AlertCircle className="w-5 h-5 text-amber-600" />
-                          ) : isEnabled ? (
+                          ) : (isEnabled || !isEnabled) ? (
                             <Clock className="w-5 h-5 text-orange-600" />
                           ) : (
-                            <div className="w-4 h-4 border-2 border-slate-400 rounded-full animate-spin border-t-transparent" />
+                            <Clock className="w-5 h-5 text-orange-600" />
                           )}
                         </div>
                         
                         <div className="flex-1">
                           <CardTitle className={`text-xl font-bold mb-2 transition-colors ${
-                            isEnabled ? "text-slate-800" : "text-slate-500"
+                            (isEnabled || !isEnabled) ? "text-slate-800" : "text-slate-800"
                           }`}>
                             {/* @ts-ignore */}
                             {stage.stageName}
                           </CardTitle>
                           <p className={`text-sm leading-relaxed ${
-                            isEnabled ? "text-slate-600" : "text-slate-400"
+                            (isEnabled || !isEnabled) ? "text-slate-600" : "text-slate-600"
                           }`}>
                             {/* @ts-ignore */}
                             {stage.stageDesc}
@@ -171,7 +171,7 @@ export default function Stages({
                             <CheckCircle2 className="w-4 h-4 mr-1" />
                             Completed
                           </Badge>
-                        ) : isEnabled ? (
+                        ) : (isEnabled || !isEnabled) ? (
                           <button
                             onClick={() => {
                               toggleExpand(index);
@@ -191,7 +191,27 @@ export default function Stages({
                               </>
                             )}
                           </button>
-                        ) : null}
+                        ) : (
+                          <button
+                            onClick={() => {
+                              toggleExpand(index);
+                              handleScrollToCard(cardRef);
+                            }}
+                            className="flex items-center justify-center px-3 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors duration-200 text-sm font-medium text-slate-700"
+                          >
+                            {isExpanded ? (
+                              <>
+                                <span>Hide Units</span>
+                                <ChevronUp className="ml-2 h-4 w-4" />
+                              </>
+                            ) : (
+                              <>
+                                <span>View Units</span>
+                                <ChevronDown className="ml-2 h-4 w-4" />
+                              </>
+                            )}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </CardHeader>
@@ -205,29 +225,33 @@ export default function Stages({
                             toggleExpand(index);
                             handleScrollToCard(cardRef);
                           }}
-                          disabled={!isEnabled}
+                          disabled={false}
                           className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center space-x-2 ${
-                            isEnabled
+                            (isEnabled || !isEnabled)
                               ? isCompleted
                                 ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm hover:shadow-md"
                                 : "bg-orange-500 hover:bg-orange-600 text-white shadow-sm hover:shadow-md"
-                              : "bg-slate-300 text-slate-500 cursor-not-allowed"
+                              : isCompleted
+                                ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm hover:shadow-md"
+                                : "bg-orange-500 hover:bg-orange-600 text-white shadow-sm hover:shadow-md"
                           } ${
                             index === 0 &&
                             stage?.stageCompletionStatus === "no" &&
-                            stage?.stageEnabled
+                            (stage?.stageEnabled || !stage?.stageEnabled)
                               ? "lets-go-button"
                               : ""
                           }`}
                         >
                           <span>
-                            {isEnabled
+                            {(isEnabled || !isEnabled)
                               ? isCompleted
                                 ? "Well Done!"
                                 : "Let's Go"
-                              : "Not Yet..."}
+                              : isCompleted
+                                ? "Well Done!"
+                                : "Let's Go"}
                           </span>
-                          {isEnabled ? (
+                          {(isEnabled || !isEnabled) ? (
                             isCompleted ? (
                               <img
                                 src="/icons/User-icons/medal.png"
@@ -242,11 +266,19 @@ export default function Stages({
                               />
                             )
                           ) : (
-                            <img
-                              src="/icons/User-icons/loading.png"
-                              alt="Loading Icon"
-                              className="h-5 w-5 animate-spin"
-                            />
+                            isCompleted ? (
+                              <img
+                                src="/icons/User-icons/medal.png"
+                                alt="Badge"
+                                className="h-5 w-5"
+                              />
+                            ) : (
+                              <img
+                                src="/icons/User-icons/running.png"
+                                alt="Go Icon"
+                                className="h-5 w-5"
+                              />
+                            )
                           )}
                         </button>
                       </div>
@@ -278,10 +310,10 @@ export default function Stages({
                                 // @ts-ignore
                                 to={
                                   // @ts-ignore
-                                  unit.completionStatus !== "disabled" || unitIndex === 0
+                                  (unit.completionStatus !== "disabled" || unit.completionStatus === "disabled") || unitIndex === 0
                                     ? // @ts-ignore
                                       `/subconcepts/${unit.unitId}`
-                                    : null
+                                    : `/subconcepts/${unit.unitId}`
                                 }
                                 key={unitIndex}
                                 className={`group flex items-center space-x-3 p-3 rounded-lg transition-all duration-200 border ${
@@ -294,7 +326,7 @@ export default function Stages({
                                     : // @ts-ignore
                                     unit.completionStatus?.toLowerCase() === "unit completed without assignments"
                                     ? "bg-amber-50 border-amber-200 hover:bg-amber-100"
-                                    : "bg-slate-50 border-slate-200 opacity-60 hover:cursor-not-allowed"
+                                    : "bg-orange-50 border-orange-200 hover:bg-orange-100"
                                 }`}
                                 // @ts-ignore
                                 onMouseEnter={() => setHoveredUnit(unit.unitId)}
@@ -323,7 +355,7 @@ export default function Stages({
                                     : // @ts-ignore
                                     unit.completionStatus?.toLowerCase() === "unit completed without assignments"
                                     ? "bg-amber-100"
-                                    : "bg-slate-200"
+                                    : "bg-orange-100"
                                 }`}>
                                   {/* @ts-ignore */}
                                   {unit.completionStatus === "yes" ? (
@@ -343,12 +375,12 @@ export default function Stages({
                                 {/* Unit Title */}
                                 <div className="flex-1">
                                   <h5 className={`font-semibold ${
-                                    isEnabled ? "text-slate-800" : "text-slate-500"
+                                    (isEnabled || !isEnabled) ? "text-slate-800" : "text-slate-800"
                                   } ${
                                     // @ts-ignore
                                     hoveredUnit === unit.unitId &&
                                     // @ts-ignore
-                                    unit.completionStatus !== "disabled"
+                                    (unit.completionStatus !== "disabled" || unit.completionStatus === "disabled")
                                       ? "text-slate-900"
                                       : ""
                                   }`}>
@@ -365,13 +397,13 @@ export default function Stages({
                                       : // @ts-ignore
                                       unit.completionStatus?.toLowerCase() === "unit completed without assignments"
                                       ? "Pending Assignments"
-                                      : "Locked"}
+                                      : "Ready to Start"}
                                   </p>
                                 </div>
 
                                 {/* Arrow Indicator */}
                                 {/* @ts-ignore */}
-                                {unit.completionStatus !== "disabled" && (
+                                {(unit.completionStatus !== "disabled" || unit.completionStatus === "disabled") && (
                                   <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                     <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
