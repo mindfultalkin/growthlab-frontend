@@ -89,6 +89,7 @@ const iconMap = {
   youtube: Video,
   html: Edit3,
   pdf: FileText,
+  ted: FileText,
   video: Video,
   audio: Headphones,
   image: Eye,

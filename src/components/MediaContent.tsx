@@ -11,6 +11,7 @@ import axios from "axios";
 import { Button } from "./ui/button";
 // @ts-ignore
 const MediaContent = ({ subconceptData, currentUnitId }) => {
+  console.log("subconceptData", subconceptData);
   const [playedPercentage, setPlayedPercentage] = useState(0);
   // @ts-ignore
   const userData = JSON.parse(localStorage.getItem("userData"));
@@ -21,7 +22,8 @@ const MediaContent = ({ subconceptData, currentUnitId }) => {
       subconceptData?.subconceptType?.startsWith("pdf") ||
       subconceptData?.subconceptType?.startsWith("assignment_pdf") ||
       subconceptData?.subconceptType?.startsWith("image") ||
-      subconceptData?.subconceptType?.startsWith("youtube")
+      subconceptData?.subconceptType?.startsWith("youtube") ||
+      subconceptData?.subconceptType?.startsWith("ted")
     )
   );
   const contentRef = useRef(null);
@@ -463,11 +465,13 @@ case "assignment_image":
       case "pdf":
       case "assignment_pdf":
       case "youtube":
+      case "ted":
         return (
           <div
             onContextMenu={(e) => e.preventDefault()} // Disable right-click
             className={`${
-              subconceptData?.subconceptType?.toLowerCase() === "youtube" &&
+              (subconceptData?.subconceptType?.toLowerCase() === "youtube" ||
+               subconceptData?.subconceptType?.toLowerCase() === "ted") &&
               "w-11/12"
             } iframe-wrapper w-full`}
             style={{ position: "relative" }}
@@ -475,16 +479,28 @@ case "assignment_image":
             <iframe
               // onLoad={handleContentLoaded}
               className="h-[calc(100vh-300px)]"
-              src={`${subconceptLink}#toolbar=0`} // Disable PDF toolbar
+              src={
+                subconceptData?.subconceptType?.toLowerCase() === "ted"
+                  ? subconceptLink // TED embeds don't need toolbar parameter
+                  : `${subconceptLink}#toolbar=0` // Disable PDF toolbar for PDFs
+              }
               width="100%"
               // height=""
-              title="PDF Document"
+              title={
+                subconceptData?.subconceptType?.toLowerCase() === "ted"
+                  ? "TED Talk"
+                  : subconceptData?.subconceptType?.toLowerCase() === "youtube"
+                  ? "YouTube Video"
+                  : "PDF Document"
+              }
               style={{
                 borderRadius: "12px",
                 boxShadow: "0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
                 border: "2px solid #e2e8f0",
                 // pointerEvents: "none",
               }}
+              frameBorder="0"
+              allowFullScreen={subconceptData?.subconceptType?.toLowerCase() === "ted"}
               // onContextMenu={(e) => e.preventDefault()} // Block right-click menu
               // @ts-ignore
               // controlsList="nodownload" // Restrict download
@@ -580,6 +596,8 @@ case "assignment_image":
           {subconceptData?.subconceptType === "video" ||
           subconceptData?.subconceptType === "youtube"
             ? "Watch the video"
+            : subconceptData?.subconceptType === "ted"
+            ? "Watch the TED talk"
             : subconceptData?.subconceptType === "audio"
             ? "Listen to the audio"
             : subconceptData?.subconceptType === "pdf"
@@ -603,7 +621,7 @@ case "assignment_image":
         <div
           id="contentArea"
           className={`relative z-10 mb-6 mt-4 mx-auto p-4 sm:p-6 md:pb-24 flex justify-center items-center ${
-            ["assessment", "video", "assignment_video", "youtube"].includes(
+            ["assessment", "video", "assignment_video", "youtube", "ted"].includes(
               subconceptData?.subconceptType
             )
               ? "w-11/12 flex justify-center items-center"
@@ -613,12 +631,7 @@ case "assignment_image":
           {renderContent()}
         </div>
         <div
-          className={`relative z-10 bg-white/95 backdrop-blur-sm border-t border-slate-200 ${
-            subconceptData?.subconceptType === "pdf" ||
-            subconceptData?.subconceptType === "assignment_pdf"
-              ? "sticky"
-              : "fixed w-full"
-          } flex-col bottom-0 flex justify-center gap-2 flex-wrap p-1 shadow-2xl before:content-[''] before:absolute before:top-0 before:left-0 before:w-full before:h-1 before:bg-gradient-to-b before:from-slate-300 before:to-transparent before:rounded-t-md z-10`}
+          className="fixed bottom-0 left-0 w-full z-10 bg-white/95 backdrop-blur-sm border-t border-slate-200 flex-col flex justify-center gap-2 flex-wrap p-1 shadow-2xl before:content-[''] before:absolute before:top-0 before:left-0 before:w-full before:h-1 before:bg-gradient-to-b before:from-slate-300 before:to-transparent before:rounded-t-md"
         >
           {subconceptData?.subconceptType === "assessment" && (
             <div className="flex justify-center items-center space-x-2 py-1">
