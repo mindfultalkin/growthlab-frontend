@@ -9,6 +9,7 @@ import ActivityCompletionModal from "./ActivityCompletionModal";
 import AssignmentStatusModal from "./modals/AssignmentStatusModal";
 import axios from "axios";
 import { Button } from "./ui/button";
+import { BookOpen, Mic } from "lucide-react";
 // @ts-ignore
 const MediaContent = ({ subconceptData, currentUnitId }) => {
   console.log("subconceptData", subconceptData);
@@ -23,9 +24,14 @@ const MediaContent = ({ subconceptData, currentUnitId }) => {
       subconceptData?.subconceptType?.startsWith("assignment_pdf") ||
       subconceptData?.subconceptType?.startsWith("image") ||
       subconceptData?.subconceptType?.startsWith("youtube") ||
-      subconceptData?.subconceptType?.startsWith("ted")
+      subconceptData?.subconceptType?.startsWith("ted") ||
+      subconceptData?.subconceptType?.startsWith("medium") ||
+      subconceptData?.subconceptType?.startsWith("toastmasters")
     )
   );
+  const [redirectCountdown, setRedirectCountdown] = useState(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [showManualButton, setShowManualButton] = useState(false);
   const contentRef = useRef(null);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [successCountdown, setSuccessCountdown] = useState(3);
@@ -173,6 +179,36 @@ const MediaContent = ({ subconceptData, currentUnitId }) => {
   //     navigate(`/subconcepts/${userData?.unitId}`);
   //   }
   // }, [showSuccessPopup, successCountdown]);
+
+  // Handle countdown for redirect
+  // Auto-trigger redirect for Medium and Toastmasters when component loads
+  useEffect(() => {
+    if (subconceptData?.subconceptType === "medium" || subconceptData?.subconceptType === "toastmasters") {
+      // Start countdown first, don't open immediately
+      setIsRedirecting(true);
+      setRedirectCountdown(5);
+    }
+  }, [subconceptData]);
+
+  useEffect(() => {
+    if (redirectCountdown > 0) {
+      const interval = setInterval(() => {
+        setRedirectCountdown((prev) => prev - 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    } else if (redirectCountdown === 0) {
+      // Try to open in new tab when countdown reaches 0
+      const opened = window.open(subconceptData?.subconceptLink, '_blank', 'noopener,noreferrer');
+      setIsRedirecting(false);
+      
+      // If popup was blocked, show manual button after a short delay
+      setTimeout(() => {
+        if (!opened || opened.closed || typeof opened.closed == 'undefined') {
+          setShowManualButton(true);
+        }
+      }, 1000);
+    }
+  }, [redirectCountdown]);
 
   // Handle countdown for error overlay
   useEffect(() => {
@@ -397,6 +433,128 @@ const MediaContent = ({ subconceptData, currentUnitId }) => {
   const renderContent = () => {
     const { subconceptType, subconceptLink } = subconceptData;
     switch (subconceptType) {
+      case "medium":
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[500px] p-8">
+          <div className="p-8 max-w-2xl w-full text-center">
+            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <BookOpen className="w-8 h-8 text-emerald-600" />
+            </div>
+            
+            <h2 className="text-2xl font-bold text-slate-800 mb-4">
+              Medium Article
+            </h2>
+            
+            {isRedirecting && redirectCountdown > 0 ? (
+              <>
+                <p className="text-slate-600 mb-4 leading-relaxed">
+                  Preparing to open article in new tab in {redirectCountdown} seconds...
+                </p>
+                
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4">
+                  <p className="text-emerald-700 font-medium">
+                    Opening in {redirectCountdown} seconds...
+                  </p>
+                </div>
+                
+                <div className="flex justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                </div>
+              </>
+            ) : showManualButton ? (
+              <>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                  <p className="text-amber-800 font-medium mb-2">
+                    ⚠️ Popup was blocked by your browser
+                  </p>
+                  <p className="text-amber-700 text-sm">
+                    Please click the button below to open the article manually.
+                  </p>
+                </div>
+                
+                <button
+                  onClick={() => {
+                    window.open(subconceptData?.subconceptLink, '_blank', 'noopener,noreferrer');
+                    setShowManualButton(false);
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 transform hover:scale-105 shadow-lg mb-4"
+                >
+                  Open Article Manually
+                </button>
+                
+                <p className="text-slate-600 text-sm leading-relaxed">
+                  After reading the article, please click "Complete" when finished.
+                </p>
+              </>
+            ) : (
+              <p className="text-slate-600 mb-8 leading-relaxed">
+                The article has been opened in a new tab. Please read it and click "Complete" when finished.
+              </p>
+            )}
+          </div>
+        </div>
+      );
+      case "toastmasters":
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[500px] p-8">
+          <div className="p-8 max-w-2xl w-full text-center">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Mic className="w-8 h-8 text-blue-600" />
+            </div>
+            
+            <h2 className="text-2xl font-bold text-slate-800 mb-4">
+              Toastmasters Content
+            </h2>
+            
+            {isRedirecting && redirectCountdown > 0 ? (
+              <>
+                <p className="text-slate-600 mb-4 leading-relaxed">
+                  Preparing to open content in new tab in {redirectCountdown} seconds...
+                </p>
+                
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <p className="text-blue-700 font-medium">
+                    Opening in {redirectCountdown} seconds...
+                  </p>
+                </div>
+                
+                <div className="flex justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              </>
+            ) : showManualButton ? (
+              <>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                  <p className="text-amber-800 font-medium mb-2">
+                    ⚠️ Popup was blocked by your browser
+                  </p>
+                  <p className="text-amber-700 text-sm">
+                    Please click the button below to open the content manually.
+                  </p>
+                </div>
+                
+                <button
+                  onClick={() => {
+                    window.open(subconceptData?.subconceptLink, '_blank', 'noopener,noreferrer');
+                    setShowManualButton(false);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 transform hover:scale-105 shadow-lg mb-4"
+                >
+                  Open Toastmasters Content
+                </button>
+                
+                <p className="text-slate-600 text-sm leading-relaxed">
+                  After accessing the content, please click "Complete" when finished.
+                </p>
+              </>
+            ) : (
+              <p className="text-slate-600 mb-8 leading-relaxed">
+                The content has been opened in a new tab. Please access it and click "Complete" when finished.
+              </p>
+            )}
+          </div>
+        </div>
+      );
       case "audio":
       case "assignment_audio":
         return (
@@ -598,6 +756,10 @@ case "assignment_image":
             ? "Watch the video"
             : subconceptData?.subconceptType === "ted"
             ? "Watch the TED talk"
+            : subconceptData?.subconceptType === "medium"
+            ? "Read the article"
+            : subconceptData?.subconceptType === "toastmasters"
+            ? "Access Toastmasters content"
             : subconceptData?.subconceptType === "audio"
             ? "Listen to the audio"
             : subconceptData?.subconceptType === "pdf"

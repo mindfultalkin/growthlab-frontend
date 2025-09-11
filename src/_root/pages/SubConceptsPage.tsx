@@ -87,56 +87,72 @@ interface Subconcept {
 
 const iconMap = {
   youtube: Video,
-  html: Edit3,
-  pdf: FileText,
-  ted: FileText,
-  medium: BookOpen,
-  toastmasters: BookOpen,
+  ted: Video,
   video: Video,
-  audio: Headphones,
+
+  medium: Eye,
+  pdf: Eye,
+  toastmasters: Eye,
   image: Eye,
-  qna: HelpCircle,
-  fib: Edit3,
-  grammar: PenTool,
-  comprehension: BookOpen,
-  trueorfalse: CheckCircle2,
-  jw: Shuffle,
-  listen: Headphones,
-  speak: Mic,
-  match: Target,
-  read: BookOpen,
-  teacher_assist: GraduationCap,
-  write: Edit3,
-  riddles: Lightbulb,
-  dictation: Mic,
-  vocab: BookMarked,
-  mtf: Target,
-  mcq: HelpCircle,
-  realworld: Globe,
-  literature: BookMarked,
-  dialogue_writing: MessageSquare,
-  generate_idea_words: Lightbulb,
-  how_sentences_change: Edit3,
-  main_idea: Target,
-  story_completion: Feather,
   text_from_picture: Eye,
-  text_from_text: FileText,
+
+  audio: Headphones,
+  listen: Headphones,
+
+  jw: FileText,
+  passage_jw: FileText,
+
+  speak: Mic,
+  dictation: Mic,
+
+  match: Target,
+  main_idea: Target,
+
+  read: Eye,
+  passage_read: Eye,
+  passage_comprehension: Eye,
+
+  teacher_assist: GraduationCap,
+
+  write: Edit3,
+  how_sentences_change: Edit3,
   writer_general_sentences: Edit3,
+  passage_fib: Edit3,
+
+  riddles: Lightbulb,
+  generate_idea_words: Lightbulb,
+
+  vocab: BookMarked,
+  literature: BookMarked,
   word: BookMarked,
   words: BookMarked,
-  passage_read: BookOpen,
-  passage_jw: Shuffle,
-  passage_fib: Edit3,
   passage_spelling: BookMarked,
   passage_vocab: BookMarked,
-  passage_comprehension: BookOpen,
+
+  dialogue_writing: MessageSquare,
+
+  story_completion: Feather,
+
+  realworld: Globe,
+
   passage_qna: HelpCircle,
-  assignment: ClipboardCheck,
-  assignment_pdf: ClipboardCheck,
-  assignment_video: ClipboardCheck,
-  assignment_audio: ClipboardCheck,
-  assignment_image: ClipboardCheck,
-  assessment: GraduationCap,
+
+  html: FileText,
+  qna: FileText,
+  fib: FileText,
+  grammar: FileText,
+  comprehension: FileText,
+  trueorfalse: FileText,
+  text_from_text: FileText,
+  mtf: FileText,
+  mcq: FileText,
+  assignment: FileText,
+  assignment_pdf: FileText,
+  assignment_video: FileText,
+  assignment_audio: FileText,
+  assignment_image: FileText,
+  assessment: FileText,
+
 };
 
 const ActivityTypeColors = {
@@ -295,16 +311,40 @@ const ActivityCard = ({ subconcept, index, isEnabled, isCompleted, isNext, stage
                 `}>
                   {subconcept.subconceptDesc}
                 </h3>
-                <p className={`
-                  text-sm capitalize
-                  ${isCompleted 
-                    ? "text-emerald-600" 
-                    : (isEnabled || !isEnabled)
-                      ? "text-blue-600" 
-                      : "text-blue-600"}
-                `}>
-                  {subconcept.subconceptType.replace(/_/g, ' ')}
-                </p>
+                
+                {/* Duration and Tags Container */}
+                <div className="flex flex-wrap items-center gap-2 mt-2">
+                  {/* Duration Display */}
+                  {subconcept.subconceptDuration && (
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-slate-400" />
+                      <span className="text-xs text-slate-500">
+                        {(() => {
+                          const duration = parseInt(subconcept.subconceptDuration);
+                          if (duration < 60) {
+                            return `${duration}s`;
+                          } else if (duration < 3600) {
+                            const minutes = Math.floor(duration / 60);
+                            const seconds = duration % 60;
+                            return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+                          } else {
+                            const hours = Math.floor(duration / 3600);
+                            const remainingMinutes = Math.floor((duration % 3600) / 60);
+                            return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+                          }
+                        })()}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Mentor Only Tag */}
+                  {subconcept.showTo && subconcept.showTo === "Mentor" && (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-teal-50 text-teal-800 rounded-md border border-teal-300">
+                      <Star className="w-3 h-3 fill-teal-600 text-teal-600" />
+                      Mentor only
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 

@@ -129,7 +129,9 @@ const SingleSubconcept = () => {
       "mtf",
       "mcq",
       "word",
-      "ted"
+      "ted",
+      "medium",
+      "toastmasters"
     ].includes(subconcept?.subconceptType)
   );
   // const [showSubmit, setShowSubmit] = useState(
