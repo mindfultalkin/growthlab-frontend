@@ -95,6 +95,7 @@ const iconMap = {
   toastmasters: Eye,
   image: Eye,
   text_from_picture: Eye,
+  pdfAsPpt: Eye,
 
   audio: Headphones,
   listen: Headphones,

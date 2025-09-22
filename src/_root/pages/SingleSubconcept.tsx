@@ -131,7 +131,8 @@ const SingleSubconcept = () => {
       "word",
       "ted",
       "medium",
-      "toastmasters"
+      "toastmasters",
+      "pdfAsPpt"
     ].includes(subconcept?.subconceptType)
   );
   // const [showSubmit, setShowSubmit] = useState(
