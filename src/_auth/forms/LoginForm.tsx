@@ -146,7 +146,7 @@ export default function LoginPage() {
       )}
       
       {/* Clean Professional Corporate Login Design */}
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 w-full">
+      <div className="min-h-screen bg-slate-50 w-full overflow-y-auto p-4 flex justify-center">
         <div className="w-full max-w-md">
           {/* Simple Professional Logo Section */}
           <div className="text-center mb-8">
