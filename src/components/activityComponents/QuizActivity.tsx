@@ -4,8 +4,8 @@ import { Question as QuestionType, QuizState } from "@/types/types";
 import { fetchAndParseQuestionsFromXML } from "@/utils/XmlParser";
 import Question from "@/components/Question";
 import Options from "@/components/Options";
-import Navigation from "@/components/Navigation";
-import ScoreDisplay from "@/components/ScoreDisplay";
+import QuizNavigation from "@/components/QuizNavigation";
+import QuizSummary from "@/components/QuizSummary";
 
 interface QuizActivityProps {
   triggerSubmit: () => void;
@@ -40,17 +40,14 @@ const QuizActivity: React.FC<QuizActivityProps> = ({
     currentQuestionIndex: 0,
     questions: [],
     selectedOptions: {},
-    isChecked: false,
     score: 0,
     timeRemaining: 15 * 60,
     totalMarks: 0,
-    scoredQuestions: {},
+    showSummary: false,
   });
 
   // Add state for activities header text
-  const [activitiesHeaderText, setActivitiesHeaderText] = useState<
-    string | null
-  >(null);
+  const [activitiesHeaderText, setActivitiesHeaderText] = useState<string | null>(null);
 
   // Add state for image overlay
   const [showImgOverlay, setShowImgOverlay] = useState(false);
@@ -98,8 +95,7 @@ const QuizActivity: React.FC<QuizActivityProps> = ({
   useEffect(() => {
     const loadQuestions = async () => {
       try {
-        const { questions, activitiesHeaderText } =
-          await fetchAndParseQuestionsFromXML(xmlUrl);
+        const { questions, activitiesHeaderText } = await fetchAndParseQuestionsFromXML(xmlUrl);
         const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
 
         setState((prev) => ({
@@ -150,8 +146,6 @@ const QuizActivity: React.FC<QuizActivityProps> = ({
   };
 
   const handleOptionSelect = (optionId: string) => {
-    if (state.isChecked) return;
-
     // Play option select sound
     playSound(selectSoundRef);
 
@@ -186,62 +180,6 @@ const QuizActivity: React.FC<QuizActivityProps> = ({
     }));
   };
 
-  const handleCheck = () => {
-    if (!currentQuestion) return;
-
-    const questionId = currentQuestion.id;
-
-    // Skip scoring if already scored
-    if (state.scoredQuestions[questionId]) {
-      setState((prev) => ({
-        ...prev,
-        isChecked: true,
-      }));
-      return;
-    }
-
-    const selectedIds = state.selectedOptions[questionId] || [];
-    const correctOptionIds = currentQuestion.options
-      .filter((opt) => opt.isCorrect)
-      .map((opt) => opt.id);
-
-    let isCorrect = false;
-
-    if (currentQuestion.type === "single") {
-      isCorrect =
-        selectedIds.length === 1 && correctOptionIds.includes(selectedIds[0]);
-    } else {
-      const allCorrectSelected = correctOptionIds.every((id) =>
-        selectedIds.includes(id)
-      );
-      const noIncorrectSelected = selectedIds.every((id) =>
-        correctOptionIds.includes(id)
-      );
-      isCorrect = allCorrectSelected && noIncorrectSelected;
-    }
-
-    // Play correct or wrong sound based on answer
-    if (isCorrect) {
-      playSound(correctSoundRef);
-    } else {
-      playSound(wrongSoundRef);
-    }
-
-    const scoreIncrease = isCorrect ? currentQuestion.marks : 0;
-
-    setState((prev) => ({
-      ...prev,
-      isChecked: true,
-      score: prev.score + scoreIncrease,
-      scoredQuestions: {
-        ...prev.scoredQuestions,
-        ...(isCorrect && !prev.scoredQuestions[questionId]
-          ? { [questionId]: true }
-          : {}),
-      },
-    }));
-  };
-
   const handleNext = () => {
     if (state.currentQuestionIndex >= state.questions.length - 1) return;
 
@@ -251,7 +189,6 @@ const QuizActivity: React.FC<QuizActivityProps> = ({
     setState((prev) => ({
       ...prev,
       currentQuestionIndex: prev.currentQuestionIndex + 1,
-      isChecked: false,
     }));
   };
 
@@ -264,16 +201,62 @@ const QuizActivity: React.FC<QuizActivityProps> = ({
     setState((prev) => ({
       ...prev,
       currentQuestionIndex: prev.currentQuestionIndex - 1,
-      isChecked: false,
     }));
   };
 
-  const handleSubmit = () => {
+  const evaluateAllAnswers = () => {
+    let totalScore = 0;
+    const results = state.questions.map(question => {
+      const selectedIds = state.selectedOptions[question.id] || [];
+      const correctOptionIds = question.options
+        .filter((opt) => opt.isCorrect)
+        .map((opt) => opt.id);
+
+      let isCorrect = false;
+
+      if (question.type === "single") {
+        isCorrect =
+          selectedIds.length === 1 && correctOptionIds.includes(selectedIds[0]);
+      } else {
+        const allCorrectSelected = correctOptionIds.every((id) =>
+          selectedIds.includes(id)
+        );
+        const noIncorrectSelected = selectedIds.every((id) =>
+          correctOptionIds.includes(id)
+        );
+        isCorrect = allCorrectSelected && noIncorrectSelected;
+      }
+
+      if (isCorrect) {
+        totalScore += question.marks;
+      }
+
+      return {
+        question,
+        selectedOptions: selectedIds,
+        isCorrect,
+        correctOptions: correctOptionIds
+      };
+    });
+
+    return { totalScore, results };
+  };
+
+  const handleSubmitAssessment = () => {
+    const { totalScore, results } = evaluateAllAnswers();
+    
     // Play navigation sound for submit
     playSound(navigationSoundRef);
 
-    const finalScore = state.score;
-    const percentage = (finalScore / subconceptMaxscore) * 100;
+    setState((prev) => ({
+      ...prev,
+      score: totalScore,
+      showSummary: true,
+    }));
+  };
+
+  const handleSummaryContinue = () => {
+    const percentage = (state.score / subconceptMaxscore) * 100;
 
     // Set the score percentage
     setScorePercentage(percentage);
@@ -281,7 +264,7 @@ const QuizActivity: React.FC<QuizActivityProps> = ({
     // Set the submission payload
     setSubmissionPayload?.({
       userAttemptFlag: true,
-      userAttemptScore: finalScore,
+      userAttemptScore: state.score,
     });
 
     // Trigger submit after 100ms
@@ -302,14 +285,25 @@ const QuizActivity: React.FC<QuizActivityProps> = ({
 
   if (!currentQuestion) return null;
 
+  // Show summary after assessment submission
+  if (state.showSummary) {
+    return (
+      <QuizSummary
+        questions={state.questions}
+        userAnswers={state.selectedOptions}
+        score={state.score}
+        totalMarks={state.totalMarks}
+        onContinue={handleSummaryContinue}
+      />
+    );
+  }
+
   const questionId = currentQuestion.id;
   const selectedOptions = state.selectedOptions[questionId] || [];
-  const canCheck = selectedOptions.length > 0;
+  const canProceed = selectedOptions.length > 0;
 
   return (
-    <div
-      className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 font-sans p-4 relative"
-    >
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 font-sans p-4 relative">
       {/* Professional overlay for depth */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-slate-100/30 z-0" />
       <div className="relative z-10 w-full py-10 px-4">
@@ -322,47 +316,30 @@ const QuizActivity: React.FC<QuizActivityProps> = ({
             )}
           </div>
 
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            {/* Score on top for small, right for md+ */}
-            <div className="block md:hidden">
-              <ScoreDisplay score={state.score} total={state.totalMarks} />
-            </div>
+          <div className="flex flex-col">
+            <Question
+              question={currentQuestion}
+              currentIndex={state.currentQuestionIndex}
+              totalQuestions={state.questions.length}
+              activitiesHeaderText={activitiesHeaderText}
+              onImageClick={handleImageClick}
+            />
 
-            <div className="flex flex-col flex-grow">
-              <Question
-                question={currentQuestion}
-                currentIndex={state.currentQuestionIndex}
-                totalQuestions={state.questions.length}
-                activitiesHeaderText={activitiesHeaderText}
-                onImageClick={handleImageClick}
-              />
+            <Options
+              options={currentQuestion.options}
+              selectedOptions={selectedOptions}
+              isMultiple={currentQuestion.type === "multiple"}
+              onSelect={handleOptionSelect}
+            />
 
-              <Options
-                options={currentQuestion.options}
-                selectedOptions={selectedOptions}
-                isMultiple={currentQuestion.type === "multiple"}
-                isChecked={state.isChecked}
-                onSelect={handleOptionSelect}
-              />
-
-              <Navigation
-                onPrevious={handlePrevious}
-                onNext={handleNext}
-                onCheck={handleCheck}
-                onSubmit={handleSubmit}
-                isFirstQuestion={state.currentQuestionIndex === 0}
-                isLastQuestion={
-                  state.currentQuestionIndex === state.questions.length - 1
-                }
-                isChecked={state.isChecked}
-                canCheck={canCheck}
-              />
-            </div>
-
-            {/* Score on right for md+ */}
-            <div className="hidden md:flex md:items-center md:justify-center">
-              <ScoreDisplay score={state.score} total={state.totalMarks} />
-            </div>
+            <QuizNavigation
+              onPrevious={handlePrevious}
+              onNext={handleNext}
+              onSubmitAssessment={handleSubmitAssessment}
+              isFirstQuestion={state.currentQuestionIndex === 0}
+              isLastQuestion={state.currentQuestionIndex === state.questions.length - 1}
+              canProceed={canProceed}
+            />
           </div>
         </div>
       </div>
