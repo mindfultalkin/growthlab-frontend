@@ -20,7 +20,6 @@ const ErrorOverlay = ({ countdown = 5, onClose }) => {
       const interval = setInterval(() => setTimer((prev) => prev - 1), 1000);
       return () => clearInterval(interval);
     } else {
-      // Trigger the close function once the countdown reaches 0
       onClose();
     }
   }, [timer, onClose]);
@@ -33,7 +32,6 @@ const ErrorOverlay = ({ countdown = 5, onClose }) => {
         transition={{ duration: 0.3, ease: "easeOut" }}
         className="bg-gradient-to-br from-red-50 to-orange-50 rounded-2xl w-full max-w-md mx-4 overflow-hidden shadow-2xl border border-red-200"
       >
-        {/* Header */}
         <div className="bg-white/80 backdrop-blur-sm py-4 px-6 border-b border-red-200/50">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-800">
@@ -46,9 +44,7 @@ const ErrorOverlay = ({ countdown = 5, onClose }) => {
           </div>
         </div>
 
-        {/* Content */}
         <div className="p-8 text-center">
-          {/* Icon */}
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -60,17 +56,14 @@ const ErrorOverlay = ({ countdown = 5, onClose }) => {
             </div>
           </motion.div>
 
-          {/* Title */}
           <h3 className="text-2xl font-bold mb-4 text-red-700">
             Something Went Wrong
           </h3>
 
-          {/* Message */}
           <p className="text-base leading-relaxed mb-6 text-slate-600">
             We encountered an issue while processing your activity. Please try again to continue your learning.
           </p>
 
-          {/* Countdown */}
           <div className="flex items-center justify-center gap-2 text-slate-500 text-sm">
             <Timer className="w-4 h-4" />
             <span>
@@ -81,7 +74,6 @@ const ErrorOverlay = ({ countdown = 5, onClose }) => {
           </div>
         </div>
 
-        {/* Progress Bar */}
         <div className="h-1 bg-red-200">
           <motion.div
             initial={{ width: "0%" }}
@@ -98,22 +90,96 @@ const ErrorOverlay = ({ countdown = 5, onClose }) => {
 };
 
 const SingleSubconcept = () => {
-  // console.log("rendered");
   const { user, selectedCohortWithProgram } = useUserContext();
   const location = useLocation();
   const navigate = useNavigate();
-  // State to control Submit button visibility
+  
   const [successOverlay, setSuccessOverlay] = useState(false);
   const [errorOverlay, setErrorOverlay] = useState(false);
   const [onFrameLoad, setOnFrameLoad] = useState(false);
   const [isIframeLoading, setIsIframeLoading] = useState(true);
   const [iframeError, setIframeError] = useState(false);
   const sessionId = localStorage.getItem("sessionId");
-  const subconcept = location.state?.subconcept;
+  const [subconcept, setSubconcept] = useState(location.state?.subconcept);
+  const [subconceptId, setSubconceptId] = useState(subconcept?.subconceptId);
   const [showGoBack, setShowGoBack] = useState(
     subconcept?.subconceptType?.toLowerCase() === "vocab"
   );
-  // @ts-ignore
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [scorePercentage, setScorePercentage] = useState<null | number>(null);
+
+  console.log("Current Subconcept:", subconcept);
+
+  // ADD: Restore submissionPayload state for React activity components
+  const [submissionPayload, setSubmissionPayload] = useState<{
+    userAttemptFlag: boolean;
+    userAttemptScore: number;
+  } | null>(null);
+
+  const currentUnitId = location.state?.currentUnitId;
+  const stageId = location.state?.stageId;
+  const currentIndex = location.state?.index || 0;
+  const subconcepts = location.state?.subconcepts || [];
+
+  // If location.state was not passed (for example when navigating via navigate()),
+  // attempt to recover the subconcept using the URL or the subconcepts array.
+  useEffect(() => {
+    if (!location.state || !location.state.subconcept) {
+      // Try to parse subconceptId from the pathname (/subconcept/:id)
+      try {
+        const parts = location.pathname.split("/");
+        const idFromPath = parts[parts.length - 1];
+        if (idFromPath) {
+          // Try to find it in provided subconcepts list
+          const found = (location.state?.subconcepts || subconcepts).find(
+            (s) => String(s?.subconceptId) === String(idFromPath)
+          );
+          if (found) {
+            setSubconcept(found);
+            setSubconceptId(found.subconceptId);
+            return;
+          }
+
+          // As a last resort, set subconceptId so iframe will attempt to load using stored link
+          setSubconceptId(idFromPath);
+        }
+      } catch (err) {
+        console.warn("Failed to recover subconcept from URL:", err);
+      }
+    }
+  }, [location.pathname]);
+
+  // Keep showIframe/showSubmit/showGoBack in sync when subconcept value changes
+  useEffect(() => {
+    setShowGoBack(
+      Boolean(subconcept?.subconceptType && subconcept.subconceptType.toLowerCase() === "vocab")
+    );
+
+    setShowIframe(
+      ![
+        "video",
+        "audio",
+        "pdf",
+        "image",
+        "assignment_video",
+        "assignment_audio",
+        "assignment_pdf",
+        "assignment_image",
+        "assessment",
+        "youtube",
+        "mtf",
+        "mcq",
+        "word",
+        "ted",
+        "medium",
+        "toastmasters",
+        "pdfAsPpt",
+      ].includes(subconcept?.subconceptType)
+    );
+
+    setShowSubmit(Boolean(subconcept?.subconceptType && String(subconcept.subconceptType).toLowerCase().startsWith("assignment")));
+  }, [subconcept]);
+
   const [showIframe, setShowIframe] = useState(
     ![
       "video",
@@ -135,82 +201,19 @@ const SingleSubconcept = () => {
       "pdfAsPpt"
     ].includes(subconcept?.subconceptType)
   );
-  // const [showSubmit, setShowSubmit] = useState(
-  //   subconcept?.subconceptType?.toLowerCase().startsWith("assignment") ||
-  //     subconcept?.subconceptType?.toLowerCase().startsWith("mtf")
-  // );
+
   const [showSubmit, setShowSubmit] = useState(
     subconcept?.subconceptType?.toLowerCase().startsWith("assignment")
   );
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [submissionPayload, setSubmissionPayload] = useState<{
-    userAttemptFlag: boolean;
-    userAttemptScore: number;
-  } | null>(null);
+  const submitBtnRef = useRef(null);
 
-  // console.log("submissionPayload", submissionPayload);
-
-  const currentUnitId = location.state?.currentUnitId;
-  const stageId = location.state?.stageId;
-  const [scorePercentage, setScorePercentage] = useState<null | number>(null);
-  const [isPortrait, setIsPortrait] = useState(
-    window.innerWidth < window.innerHeight
-  );
-  const [modalVisible, setModalVisible] = useState(false);
-  const submitBtnRef = useRef(null); // 👈 ref for your styled submit button
-
-  // useEffect(() => {
-  //   // Only set showSubmit to false if it's a vocabulary activity
-  //   if (subconcept?.subconceptType?.toLowerCase() === "vocab") {
-  //     setShowSubmit(false);
-  //   } else {
-  //     setShowSubmit(true);
-  //   }
-  // }, [subconcept]);
-
-  // useEffect(() => {
-  //   // Clear sessionStorage when the component mounts to show modal again on revisit
-  //   sessionStorage.removeItem("orientationModalDismissed");
-
-  //   // Function to check and update orientation
-  //   const handleOrientationChange = () => {
-  //     const portraitMode = window.innerWidth < window.innerHeight;
-  //     setIsPortrait(portraitMode);
-
-  //     // If device is in portrait mode and hasn't been dismissed, show modal
-  //     const link = subconcept.subconceptLink.toUpperCase();
-  //     if (
-  //       (link.includes("MTF".toUpperCase()) ||
-  //       link.includes("VOCABULARY".toUpperCase()) && showIframe)
-  //     ) {
-  //       const hasDismissed = sessionStorage.getItem("orientationModalDismissed");
-  //       if (portraitMode && !hasDismissed) {
-  //         setModalVisible(true);
-  //       } else {
-  //         setModalVisible(false); // Auto dismiss when in landscape
-  //       }
-  //     }
-
-  //   };
-
-  //   // Initial check
-  //   handleOrientationChange();
-
-  //   // Listen for orientation changes
-  //   window.addEventListener("resize", handleOrientationChange);
-  //   window.addEventListener("orientationchange", handleOrientationChange);
-
-  //   return () => {
-  //     window.removeEventListener("resize", handleOrientationChange);
-  //     window.removeEventListener("orientationchange", handleOrientationChange);
-  //   };
-  // }, [subconcept.subconceptLink]);
-
-  const dismissModal = () => {
-    setModalVisible(false);
-    sessionStorage.setItem("orientationModalDismissed", "true");
-  };
+  useEffect(() => {
+    if (location.state?.subconcept) {
+      setSubconcept(location.state.subconcept);
+      setSubconceptId(location.state.subconcept.subconceptId);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     if (user) {
@@ -228,84 +231,33 @@ const SingleSubconcept = () => {
       };
       localStorage.setItem("userData", JSON.stringify(userData));
     }
-  }, [user]);
+  }, [user, subconcept]);
 
   useEffect(() => {
-    // Listen for postMessage events from the iframe
     const handleMessage = (event: MessageEvent) => {
-      // Check if the message comes from the expected iframe
-      // if (event.origin === new URL(subconcept?.subconceptLink || "").origin) {
       if (event.data === "enableSubmit") {
-        setShowSubmit(true); // Show the Submit button
+        setShowSubmit(true);
       } else if (event.data === "disableSubmit") {
         setShowSubmit(false);
       } else if (event.data?.type === "scoreData") {
-        // Handle score data from iframe
         setScorePercentage(
-          (event.data.payload?.userAttemptScore /
-            subconcept?.subconceptMaxscore) *
-            100
+          (event.data.payload?.userAttemptScore / subconcept?.subconceptMaxscore) * 100
         );
-        handlePostScore(event.data.payload); // Process score data
+        handlePostScore(event.data.payload);
       } else if (event.data === "confirmSubmission") {
-        setSuccessOverlay(true); // Show success overlay upon confirmation
+        setSuccessOverlay(true);
       }
-      // }
     };
 
     window.addEventListener("message", handleMessage);
-
     return () => {
       window.removeEventListener("message", handleMessage);
     };
-  }, [subconcept?.subconceptLink]);
+  }, [subconcept?.subconceptLink, subconcept?.subconceptMaxscore]);
 
-  // const sendSubconcept = () => {
-  //   const iframe = document.getElementById("embeddedContent");
-
-  //   if (iframe && subconcept && iframe.tagName === "IFRAME") {
-  //     (iframe as HTMLIFrameElement).contentWindow?.postMessage(subconcept, "*");
-  //   }
-  // };
-
-  const handleSubmit = () => {
-    // To uncomment for new mtf activity component
-
-    if (
-      subconcept?.subconceptType?.toLowerCase() === "mtf" ||
-      subconcept?.subconceptType?.toLowerCase() === "mcq" ||
-      subconcept?.subconceptType?.toLowerCase() === "word"
-    ) {
-      // Only proceed if we have a valid submission payload
-      if (!submissionPayload) {
-        console.error("No submission payload available");
-        return;
-      }
-      console.log("submissionPayload in final call", submissionPayload);
-      handlePostScore(submissionPayload);
-    }
-    // Send a message to the iframe when Submit is clicked
-    else {
-      const iframe = document.getElementById("embeddedContent");
-      if (iframe && iframe.tagName === "IFRAME") {
-        // Send the old format for backward compatibility
-        (iframe as HTMLIFrameElement).contentWindow?.postMessage("submitClicked", "*");
-        
-        // Send additional data separately
-        (iframe as HTMLIFrameElement).contentWindow?.postMessage(
-          {
-            action: "subconceptData",
-            subconceptMaxscore: subconcept?.subconceptMaxscore
-          },
-          "*"
-        );
-      }
-    }
-  };
-
+  // UPDATE: Modified handlePostScore to handle both iframe and React components
   const handlePostScore = (payload: any) => {
-    // console.log("payload", payload);
-    if (isSubmitting) return; // prevent duplicate
+    if (isSubmitting) return;
     setIsSubmitting(true);
 
     const userData = JSON.parse(localStorage.getItem("userData") || "{}");
@@ -338,18 +290,18 @@ const SingleSubconcept = () => {
     })
       .then((response) => {
         if (response.ok) {
-          // console.log("submitted and postSuccess message sent");
-          const iframe = document.getElementById(
-            "embeddedContent"
-          ) as HTMLIFrameElement;
+          // Handle iframe success
+          const iframe = document.getElementById("embeddedContent") as HTMLIFrameElement;
           if (iframe && iframe.tagName === "IFRAME") {
             iframe.contentWindow?.postMessage("postSuccess", "*");
-          } else if (
+          } 
+          // Handle React components success
+          else if (
             subconcept?.subconceptType?.toLowerCase() === "mtf" ||
             subconcept?.subconceptType?.toLowerCase() === "mcq" ||
             subconcept?.subconceptType?.toLowerCase() === "word"
           ) {
-            setSuccessOverlay(true);
+            //setSuccessOverlay(true);
           }
         } else {
           setErrorOverlay(true);
@@ -357,99 +309,136 @@ const SingleSubconcept = () => {
         return response.json();
       })
       .then((data) => {
-        const percentage =
-          subconcept?.subconceptMaxscore === 0
-            ? 100
-            : (payload?.userAttemptScore / subconcept?.subconceptMaxscore) *
-              100;
+        const percentage = subconcept?.subconceptMaxscore === 0
+          ? 100
+          : (payload?.userAttemptScore / subconcept?.subconceptMaxscore) * 100;
         setScorePercentage(percentage);
-        // console.log("Score submitted successfully:", data);
       })
       .catch((error) => {
         console.error("Error submitting score:", error);
         setErrorOverlay(true);
       })
       .finally(() => {
-        setIsSubmitting(false); // allow future submissions
+        setIsSubmitting(false);
       });
   };
 
+  // UPDATE: Modified triggerSubmit to store payload for React components
+  const triggerSubmit = (payload: any) => {
+    console.log("Trigger submit called with payload:", payload);
+    // Store the payload for React components
+    setSubmissionPayload(payload);
+    // Auto-submit for React components
+    handlePostScore(payload);
+  };
+
+  // UPDATE: Modified handleSubmit to handle both iframe and React components properly
+  const handleSubmit = () => {
+    if (isSubmitting) {
+      console.log("Preventing duplicate submission");
+      return;
+    }
+
+    if (
+      subconcept?.subconceptType?.toLowerCase() === "mtf" ||
+      subconcept?.subconceptType?.toLowerCase() === "mcq" ||
+      subconcept?.subconceptType?.toLowerCase() === "word"
+    ) {
+      // Use stored payload for React components
+      if (!submissionPayload) {
+        console.error("No submission payload available for React component");
+        return;
+      }
+      console.log("Handling React component submission with payload:", submissionPayload);
+      handlePostScore(submissionPayload);
+    } else {
+      // Handle iframe submission
+      const iframe = document.getElementById("embeddedContent");
+      if (iframe && iframe.tagName === "IFRAME") {
+        (iframe as HTMLIFrameElement).contentWindow?.postMessage("submitClicked", "*");
+        (iframe as HTMLIFrameElement).contentWindow?.postMessage(
+          {
+            action: "subconceptData",
+            subconceptMaxscore: subconcept?.subconceptMaxscore
+          },
+          "*"
+        );
+      }
+    }
+  };
+
   const handleGoBack = () => {
-    navigate(`/subconcepts/${currentUnitId}`); // Navigate to the previous page
+    navigate(`/subconcepts/${currentUnitId}`);
+  };
+
+  // FIX: Updated handleSuccessClose to only close overlay, not navigate
+  const handleSuccessClose = () => {
+    setSuccessOverlay(false);
+    // REMOVED: navigate(`/subconcepts/${currentUnitId}`);
+    // Let the React activity components handle their own navigation
   };
 
   return (
     <>
-      {modalVisible && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg text-center">
-            <h2 className="text-xl font-bold mb-2">Rotate Your Device</h2>
-            <p className="text-gray-700 mb-4">
-              This content is best viewed in landscape mode.
-            </p>
-            <button
-              className="px-4 py-2 bg-orange-600 text-white rounded-md"
-              onClick={dismissModal}
-            >
-              Dismiss
-            </button>
-          </div>
-        </div>
-      )}
       {successOverlay && (
         <ActivityCompletionModal
           countdownDuration={3}
-          onClose={() => navigate(`/subconcepts/${currentUnitId}`)}
+          onClose={handleSuccessClose} // This will only close the overlay now
           scorePercentage={scorePercentage}
         />
       )}
       {errorOverlay && (
         <ErrorOverlay countdown={5} onClose={() => setErrorOverlay(false)} />
       )}
-      <div className="flex flex-col md:flex-row w-full">
-        {/* Iframe Container */}
-        {/* md:border-r-2 md:border-r-slate-300 */}
+      <div key={subconceptId} className="flex flex-col md:flex-row w-full">
         <div className="flex-1 m-[2px]">
-          {/* To uncomment for new mtf activity component */}
-
           {(() => {
             if (subconcept?.subconceptType === "mtf") {
               return (
                 <VocabularyActivity
-                  triggerSubmit={() => {
-                    // console.log("triggerSubmit parent");
-                    submitBtnRef.current?.click();
-                  }}
-                  // setShowSubmit={setShowSubmit}
+                  triggerSubmit={triggerSubmit}
                   xmlUrl={subconcept?.subconceptLink}
-                  // onSubmitScore={handlePostScore}
-                  setSubmissionPayload={setSubmissionPayload}
                   setScorePercentage={setScorePercentage}
                   subconceptMaxscore={subconcept?.subconceptMaxscore}
+                  // ADD: Pass navigation props for next module functionality
+                  currentIndex={currentIndex}
+                  subconcepts={subconcepts}
+                  currentUnitId={currentUnitId}
+                  stageId={stageId}
+                  // ADD: Pass setSubmissionPayload for storing payload
+                  setSubmissionPayload={setSubmissionPayload}
                 />
               );
             } else if (subconcept?.subconceptType === "mcq") {
               return (
                 <QuizActivity
-                  triggerSubmit={() => {
-                    submitBtnRef.current?.click();
-                  }}
+                  triggerSubmit={triggerSubmit}
                   xmlUrl={subconcept?.subconceptLink}
-                  setSubmissionPayload={setSubmissionPayload}
                   setScorePercentage={setScorePercentage}
                   subconceptMaxscore={subconcept?.subconceptMaxscore}
+                  // ADD: Pass navigation props for next module functionality
+                  currentIndex={currentIndex}
+                  subconcepts={subconcepts}
+                  currentUnitId={currentUnitId}
+                  stageId={stageId}
+                  // ADD: Pass setSubmissionPayload for storing payload
+                  setSubmissionPayload={setSubmissionPayload}
                 />
               );
             } else if (subconcept?.subconceptType === "word") {
               return (
                 <VocabularyLearning
-                  triggerSubmit={() => {
-                    submitBtnRef.current?.click();
-                  }}
+                  triggerSubmit={triggerSubmit}
                   xmlUrl={subconcept?.subconceptLink}
-                  setSubmissionPayload={setSubmissionPayload}
                   setScorePercentage={setScorePercentage}
                   subconceptMaxscore={subconcept?.subconceptMaxscore}
+                  // ADD: Pass navigation props for next module functionality
+                  currentIndex={currentIndex}
+                  subconcepts={subconcepts}
+                  currentUnitId={currentUnitId}
+                  stageId={stageId}
+                  // ADD: Pass setSubmissionPayload for storing payload
+                  setSubmissionPayload={setSubmissionPayload}
                 />
               );
             } else if (showIframe) {
@@ -466,7 +455,6 @@ const SingleSubconcept = () => {
                           onClick={() => {
                             setIframeError(false);
                             setIsIframeLoading(true);
-                            // Force iframe reload by updating key
                             const iframe = document.getElementById(
                               "embeddedContent"
                             ) as HTMLIFrameElement;
@@ -484,10 +472,11 @@ const SingleSubconcept = () => {
                     <iframe
                       id="embeddedContent"
                       src={subconcept?.subconceptLink}
-                      // src={"/alphabet/alphabet_a.html"}
                       title="Embedded Content"
                       className={`w-full min-h-[500px] sm:min-h-[800px]`}
                       onLoad={() => {
+                        console.log("Iframe loaded");
+                        console.log(subconcept?.subconceptLink);
                         setShowGoBack(true);
                         setOnFrameLoad(true);
                         setIsIframeLoading(false);
@@ -504,19 +493,18 @@ const SingleSubconcept = () => {
             } else {
               return (
                 <MediaContent
-                  subconceptData={subconcept}
+                  currentSubconcept={subconcept}
                   currentUnitId={currentUnitId}
+                  index={currentIndex}
+                  subconcepts={subconcepts}
                 />
               );
             }
           })()}
         </div>
-        {/* <hr className="w-[1px] border-0 bg-white h-full" /> */}
 
-        {/* Buttons Container */}
         {showIframe && (
           <div className="fixed md:sticky border-t-2 border-t-white bg-[#D5DEE7] h-auto bottom-0 flex md:flex-col flex-row items-center md:justify-start justify-center p-1 md:mr-0 gap-10 w-full md:w-[100px] ">
-            {/* Go Back Button */}
             {showGoBack && (
               <button
                 onClick={handleGoBack}
@@ -531,7 +519,6 @@ const SingleSubconcept = () => {
               </button>
             )}
 
-            {/* Submit Button (Shown only when showSubmit is true) */}
             {showSubmit && (
               <button
                 ref={submitBtnRef}

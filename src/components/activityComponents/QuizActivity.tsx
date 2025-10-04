@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom"; // ADD: Import useNavigate
 import { Question as QuestionType, QuizState } from "@/types/types";
 import { fetchAndParseQuestionsFromXML } from "@/utils/XmlParser";
 import Question from "@/components/Question";
@@ -18,6 +19,11 @@ interface QuizActivityProps {
       userAttemptScore: number;
     } | null>
   >;
+  // ADD: Navigation props for next module functionality
+  currentIndex: number;
+  subconcepts: any[];
+  currentUnitId: string;
+  stageId: string;
 }
 
 // Sound effect paths - you can replace these with your actual audio files
@@ -35,6 +41,11 @@ const QuizActivity: React.FC<QuizActivityProps> = ({
   setScorePercentage,
   subconceptMaxscore,
   setSubmissionPayload,
+  // ADD: Destructure new props
+  currentIndex,
+  subconcepts,
+  currentUnitId,
+  stageId,
 }) => {
   const [state, setState] = useState<QuizState>({
     currentQuestionIndex: 0,
@@ -45,6 +56,9 @@ const QuizActivity: React.FC<QuizActivityProps> = ({
     totalMarks: 0,
     showSummary: false,
   });
+
+  // ADD: useNavigate hook for navigation
+  const navigate = useNavigate();
 
   // Add state for activities header text
   const [activitiesHeaderText, setActivitiesHeaderText] = useState<string | null>(null);
@@ -59,6 +73,33 @@ const QuizActivity: React.FC<QuizActivityProps> = ({
   const correctSoundRef = useRef<HTMLAudioElement | null>(null);
   const wrongSoundRef = useRef<HTMLAudioElement | null>(null);
   const navigationSoundRef = useRef<HTMLAudioElement | null>(null);
+
+  // ADD: Navigation function to handle moving to next subconcept
+  const navigateToNextSubconcept = () => {
+    const nextIndex = currentIndex + 1;
+    
+    if (nextIndex < subconcepts.length) {
+      // Navigate to next subconcept in the list
+      const nextSubconcept = subconcepts[nextIndex];
+      console.log("Navigating to next subconcept:", nextSubconcept);
+      
+      navigate(`/subconcept/${nextSubconcept.subconceptId}`, {
+        state: {
+          subconcept: nextSubconcept,
+          index: nextIndex,
+          subconcepts: subconcepts,
+          stageId: stageId,
+          currentUnitId: currentUnitId,
+          subconceptId: nextSubconcept.subconceptId,
+        },
+        replace: false,
+      });
+    } else {
+      // No more subconcepts, navigate back to subconcepts list
+      console.log("No next subconcept, navigating back to list");
+      navigate(`/subconcepts/${currentUnitId}`, { replace: true });
+    }
+  };
 
   // Initialize audio elements
   useEffect(() => {
@@ -255,6 +296,7 @@ const QuizActivity: React.FC<QuizActivityProps> = ({
     }));
   };
 
+  // UPDATE: Modified to include navigation after submission
   const handleSummaryContinue = () => {
     const percentage = (state.score / subconceptMaxscore) * 100;
 
@@ -267,10 +309,15 @@ const QuizActivity: React.FC<QuizActivityProps> = ({
       userAttemptScore: state.score,
     });
 
-    // Trigger submit after 100ms
+    console.log("Quiz completed, triggering submit and navigation");
+
+    // Trigger submit
+    triggerSubmit();
+
+    // ADD: Navigate to next subconcept after a short delay to ensure submission process starts
     setTimeout(() => {
-      triggerSubmit();
-    }, 100);
+      navigateToNextSubconcept();
+    }, 500);
   };
 
   if (state.questions.length === 0) {

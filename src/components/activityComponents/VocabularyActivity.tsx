@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom"; // ADD: Import useNavigate
 import {
   DndContext,
   closestCenter,
@@ -14,9 +15,7 @@ import { restrictToWindowEdges } from "@dnd-kit/modifiers";
 import { useSensors, useSensor, PointerSensor } from "@dnd-kit/core";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-// import Image from "next/image";
 import { ArrowLeft, ArrowRight, Loader2, Volume2, VolumeX } from "lucide-react";
-// import { questionsData } from "@/constants/questions";
 import toast from "react-hot-toast";
 
 // XML parser types
@@ -78,18 +77,13 @@ const useSoundEffects = () => {
     if (typeof window !== "undefined") {
       // Set sources
       if (dragStartSound.current)
-        // dragStartSound.current.src = "/sounds/cloudstilepickup1.ogg";
         dragStartSound.current.src = "";
       if (dropSound.current)
-        // dropSound.current.src = "/sounds/cloudstiledrop2.ogg";
         dropSound.current.src = "";
       if (correctSound.current)
-        // correctSound.current.src = "/sounds/correct.ogg";
         correctSound.current.src = "";
-      // if (wrongSound.current) wrongSound.current.src = "/sounds/wrong.ogg";
       if (wrongSound.current) wrongSound.current.src = "";
       if (allCorrectSound.current)
-        // allCorrectSound.current.src = "/sounds/correct.ogg";
         allCorrectSound.current.src = "";
 
       // Preload sounds
@@ -300,7 +294,7 @@ const DraggableKeyword = ({
     >
       {/* Cloud Image as Background */}
       <img
-        src="/images/cloud_bg.webp" // Adjust this to your responsive cloud images
+        src="/images/cloud_bg.webp"
         alt="Cloud"
         className="w-full h-auto max-w-[120px] sm:max-w-[150px] md:max-w-[200px] object-contain"
       />
@@ -409,49 +403,6 @@ const DroppableZone = ({
   );
 };
 
-// Timer component
-// const Timer = ({ time }: { time: string }) => {
-//   return (
-//     <div className="absolute top-4 left-4 text-4xl font-bold text-white">
-//       {time}
-//     </div>
-//   );
-// };
-
-// Page score indicator component
-// const PageScoreIndicator = ({
-//   isAllCorrect,
-//   questionsCount,
-//   score,
-// }: {
-//   isAllCorrect: boolean | null;
-//   questionsCount: number;
-//   score: number;
-// }) => {
-//   return (
-//     <div className="absolute top-4 right-4 flex items-center gap-2 bg-white px-3 py-1 rounded-full shadow-md">
-//       <span className="font-bold text-lg">Score:</span>
-//       <span className="text-xl">
-//         {score}/{questionsCount}{" "}
-//         {isAllCorrect !== null && (isAllCorrect ? "✅" : "❌")}
-//       </span>
-//     </div>
-//   );
-// };
-
-// Loading component
-// const LoadingState = ({ headerText }: { headerText: string }) => {
-//   return (
-//     <div className="relative w-full max-w-3xl h-[600px] bg-gradient-to-b from-blue-400 to-blue-600 rounded-xl shadow-xl p-8 flex flex-col items-center justify-center">
-//       <h2 className="text-2xl font-bold text-white mb-8">{headerText}</h2>
-//       <div className="flex flex-col items-center justify-center">
-//         <Loader2 className="h-12 w-12 text-white animate-spin mb-4" />
-//         <p className="text-white text-lg">Loading questions...</p>
-//       </div>
-//     </div>
-//   )
-// }
-
 // Error component
 const ErrorState = ({ message }: { message: string }) => {
   return (
@@ -475,11 +426,6 @@ const ErrorState = ({ message }: { message: string }) => {
 interface VocabularyActivityProps {
   triggerSubmit: () => void;
   xmlUrl: string;
-  // onSubmitScore?: (payload: {
-  //   userAttemptFlag: boolean;
-  //   userAttemptScore: number;
-  // }) => void;
-  // setShowSubmit: React.Dispatch<React.SetStateAction<boolean>>;
   setScorePercentage: React.Dispatch<React.SetStateAction<number>>;
   subconceptMaxscore: number;
   setSubmissionPayload?: React.Dispatch<
@@ -488,6 +434,11 @@ interface VocabularyActivityProps {
       userAttemptScore: number;
     } | null>
   >;
+  // ADD: Navigation props for next module functionality
+  currentIndex: number;
+  subconcepts: any[];
+  currentUnitId: string;
+  stageId: string;
 }
 
 // Main component
@@ -496,9 +447,12 @@ export default function VocabularyActivity({
   xmlUrl,
   setScorePercentage,
   subconceptMaxscore,
-  // onSubmitScore,
-  // setShowSubmit,
   setSubmissionPayload,
+  // ADD: Destructure new props
+  currentIndex,
+  subconcepts,
+  currentUnitId,
+  stageId,
 }: VocabularyActivityProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -513,10 +467,8 @@ export default function VocabularyActivity({
   const [pageResults, setPageResults] = useState<boolean[]>([]);
   const [score, setScore] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(0);
-  const [showFinalScore, setShowFinalScore] = useState(false);
   const [showResults, setShowResults] = useState<Record<string, boolean>>({});
   const [isPageCorrect, setIsPageCorrect] = useState<boolean | null>(null);
-  const [showSubmit, setShowSubmit] = useState(false);
 
   // XML data state
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -524,10 +476,10 @@ export default function VocabularyActivity({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentKeywords, setCurrentKeywords] = useState<Keyword[]>([]);
-  const [currentDefinitions, setCurrentDefinitions] = useState<Definition[]>(
-    []
-  );
-  // console.log(score);
+  const [currentDefinitions, setCurrentDefinitions] = useState<Definition[]>([]);
+
+  // ADD: useNavigate hook for navigation
+  const navigate = useNavigate();
 
   // Use the sound effects hook
   const { playSound, toggleSound, isSoundEnabled } = useSoundEffects();
@@ -539,6 +491,33 @@ export default function VocabularyActivity({
       },
     })
   );
+
+  // ADD: Navigation function to handle moving to next subconcept
+  const navigateToNextSubconcept = () => {
+    const nextIndex = currentIndex + 1;
+    
+    if (nextIndex < subconcepts.length) {
+      // Navigate to next subconcept in the list
+      const nextSubconcept = subconcepts[nextIndex];
+      console.log("Navigating to next subconcept:", nextSubconcept);
+      // Use a push navigation (don't replace) so component receives fresh location/state
+      navigate(`/subconcept/${nextSubconcept.subconceptId}`, {
+        state: {
+          subconcept: nextSubconcept,
+          index: nextIndex,
+          subconcepts: subconcepts,
+          stageId: stageId,
+          currentUnitId: currentUnitId,
+          subconceptId: nextSubconcept.subconceptId,
+        },
+        replace: false,
+      });
+    } else {
+      // No more subconcepts, navigate back to subconcepts list
+      console.log("No next subconcept, navigating back to list");
+      navigate(`/subconcepts/${currentUnitId}`, { replace: true });
+    }
+  };
 
   // Fetch and parse XML data
   useEffect(() => {
@@ -562,10 +541,7 @@ export default function VocabularyActivity({
         setIsLoading(false);
       } catch (error) {
         console.error("Error fetching or parsing XML:", error);
-        setError(
-          // "Failed to load questions. Please check the XML URL and try again."
-          "Failed to load questions. Please try again later."
-        );
+        setError("Failed to load questions. Please try again later.");
         setIsLoading(false);
       }
     };
@@ -767,6 +743,7 @@ export default function VocabularyActivity({
 
   const handleSubmit = () => {
     if (questions.length === 0) return;
+    
     // Check if all definitions have a keyword placed
     const allPlaced = Object.values(placedKeywords).every(
       (value) => value !== null
@@ -810,50 +787,24 @@ export default function VocabularyActivity({
     // Calculate final score based on page results
     const finalScore = newPageResults.filter((result) => result).length;
 
-    // If this is the last question, handle final submission
-    if (currentQuestionIndex === questions.length - 1) {
-      // Set score percentage
-      setScorePercentage((finalScore / subconceptMaxscore) * 100);
+    // Set score percentage
+    setScorePercentage((finalScore / subconceptMaxscore) * 100);
 
-      // Set submission payload first
-      setSubmissionPayload?.({
-        userAttemptFlag: true,
-        userAttemptScore: finalScore,
-      });
+    // Set submission payload first
+    setSubmissionPayload?.({
+      userAttemptFlag: true,
+      userAttemptScore: finalScore,
+    });
 
-      // Then trigger submit after a small delay to ensure state updates
-      setTimeout(() => {
-        triggerSubmit();
-      }, 100);
-    }
+    console.log("Vocabulary activity completed, triggering submit and navigation");
 
-    // Reveal results one by one with animation
-    // const definitionIds = questions[currentQuestionIndex].definitions.map(
-    //   (def) => def.id
-    // );
+    // Trigger submit
+    triggerSubmit();
 
-    // definitionIds.forEach((defId, index) => {
-    //   setTimeout(() => {
-    //     setShowResults((prev) => ({
-    //       ...prev,
-    //       [defId]: true,
-    //     }));
-
-    //     // Play sound based on correctness
-    //     if (newResults[defId]) {
-    //       playSound("correct");
-    //     } else {
-    //       playSound("wrong");
-    //     }
-
-    //     // If this is the last result, play the all correct sound if applicable
-    //     if (index === definitionIds.length - 1 && allCorrect) {
-    //       setTimeout(() => {
-    //         playSound("allCorrect");
-    //       }, 500);
-    //     }
-    //   }, index * 800);
-    // });
+    // ADD: Navigate to next subconcept after a short delay to ensure submission process starts
+    setTimeout(() => {
+      navigateToNextSubconcept();
+    }, 500);
   };
 
   const handleNextQuestion = () => {
@@ -868,78 +819,13 @@ export default function VocabularyActivity({
     }
   };
 
-  // const submitScore = async (finalScore: number, totalQuestions: number) => {
-  //   try {
-  //     const response = await fetch("/api/submit-score", {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify({
-  //         total_score: finalScore,
-  //         total_questions: totalQuestions,
-  //       }),
-  //     });
-
-  //     if (!response.ok) {
-  //       throw new Error("Failed to submit score");
-  //     }
-
-  //     console.log("Score submitted successfully");
-  //   } catch (error) {
-  //     console.error("Error submitting score:", error);
-  //   }
-  // };
-
-  // Show loading state
-  // if (isLoading) {
-  //   return <LoadingState headerText={headerText} />;
-  // }
-
   // Show error state
   if (error) {
     return <ErrorState message={error} />;
   }
 
-  // If no questions loaded
-  // if (questions.length === 0) {
-  //   return <ErrorState message="No questions found in the XML file." />;
-  // }
-
   // Current question data
   const currentQuestion = questions[currentQuestionIndex];
-
-  // if (showFinalScore) {
-  //   // Calculate final score based on page results
-  //   const finalScore = pageResults.filter((result) => result).length;
-  //   return (
-  //     <div className="relative w-full max-w-3xl h-[600px] bg-gradient-to-b from-blue-400 to-blue-600 rounded-xl shadow-xl p-8 flex flex-col items-center justify-center">
-  //       <h2 className="text-3xl font-bold text-white mb-8">
-  //         Activity Complete!
-  //       </h2>
-  //       <div className="bg-white rounded-xl p-8 shadow-lg w-full max-w-md">
-  //         <h3 className="text-2xl font-bold text-center mb-4">Your Score</h3>
-  //         <div className="text-5xl font-bold text-center text-blue-600 mb-6">
-  //           {finalScore} / {totalQuestions}
-  //         </div>
-  //         <p className="text-center text-gray-600 mb-8">
-  //           You got {finalScore} out of {totalQuestions} pages correct!
-  //         </p>
-  //         <Button
-  //           className="w-full"
-  //           onClick={() => {
-  //             setCurrentQuestionIndex(0);
-  //             setScore(0);
-  //             setPageResults(new Array(questions.length).fill(false));
-  //             setShowFinalScore(false);
-  //           }}
-  //         >
-  //           Try Again
-  //         </Button>
-  //       </div>
-  //     </div>
-  //   );
-  // }
 
   return (
     <div
@@ -1071,12 +957,6 @@ export default function VocabularyActivity({
               {currentQuestionIndex === questions.length - 1 && (
                 <Button
                   onClick={handleSubmit}
-                  // disabled={
-                  //   isSubmitted ||
-                  //   !currentDefinitions.every(
-                  //     (def) => placedKeywords[def.id] !== null
-                  //   )
-                  // }
                   className="bg-[#64CE80] text-white hover:bg-[#5bc3cd]"
                 >
                   Submit

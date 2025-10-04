@@ -179,7 +179,7 @@ const getActivityTypeColor = (type: string) => {
   return ActivityTypeColors.default;
 };
 
-const ActivityCard = ({ subconcept, index, isEnabled, isCompleted, isNext, stageId, currentUnitId }) => {
+const ActivityCard = ({ subconcept, index, isEnabled, isCompleted, isNext, stageId, currentUnitId, subconcepts }) => {
   const normalizedIconMap = Object.keys(iconMap).reduce(
     (acc, key) => {
       acc[key.toLowerCase()] = iconMap[key];
@@ -206,7 +206,7 @@ const ActivityCard = ({ subconcept, index, isEnabled, isCompleted, isNext, stage
             ? `/subconcept/${subconcept?.subconceptId}`
             : null
         }
-        state={{ subconcept, stageId, currentUnitId }}
+        state={{ subconcept, stageId, currentUnitId, subconcepts, index }}
         className={`${(!isEnabled || isEnabled) && "cursor-pointer"}`}
         onClick={(e) => {
           if (subconcept?.subconceptType?.toLowerCase().startsWith("assessment") &&
@@ -630,13 +630,14 @@ export default function SubConceptsPage() {
                 return (
                   <ActivityCard
                     key={subconcept.subconceptId}
-                    subconcept={subconcept}
                     index={index}
+                    subconcept={subconcept}
                     isEnabled={isEnabled}
                     isCompleted={isCompleted}
                     isNext={isNext}
                     stageId={stageId}
                     currentUnitId={currentUnitId}
+                    subconcepts={subconcepts}
                   />
                 );
               })}
